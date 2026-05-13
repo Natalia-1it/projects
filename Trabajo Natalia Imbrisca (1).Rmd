@@ -1,0 +1,1350 @@
+---
+title: "Análisis de las variables predictoras de la diabetes y sus implicaciones en la tribu Pima"
+author: "Natalia Imbrisca"
+date: "16/5/2024"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    toc: yes
+    theme: simplex
+    toc_float: yes
+    toc_depth: '3'
+always_allow_html: yes
+
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+```
+
+
+# 1. Resumen / Abstract
+
+**Español**
+
+La diabetes mellitus es una condición crónica caracterizada por niveles elevados de azúcar en la sangre. Esta enfermedad puede ser el resultado de un mal funcionamiento del páncreas, la glándula que produce la hormona insulina, o de una respuesta inadecuada del cuerpo a dicha hormona. En Perú, según datos del INEI en 2018, la prevalencia de diabetes fue mayor en mujeres (77,2%) en comparación con hombres (65,3%). La diabetes gestacional se presenta durante el embarazo cuando los niveles de glucosa en sangre son elevados, aunque no lo suficiente para un diagnóstico de diabetes, aumentando el riesgo de complicaciones tanto durante el embarazo como en el parto.
+El objetivo de este conjunto de datos, que recoge 768 pacientes, todas mujeres menores de 21 años y de ascendencia india Pima (tribu Hohocán, América), es predecir de manera diagnóstica si un paciente tiene diabetes basándose en diversas mediciones diagnósticas.
+ 
+**Inglés**
+
+Diabetes mellitus is a chronic condition characterized by high blood sugar levels. This disease can be the result of a malfunction of the pancreas, the gland that produces the hormone insulin, or an inadequate response of the body to said hormone. In Peru, according to INEI data in 2018, the prevalence of diabetes was higher in women (77.2%) compared to men (65.3%). Gestational diabetes occurs during pregnancy when blood glucose levels are high, although not high enough for a diagnosis of diabetes, increasing the risk of complications during both pregnancy and childbirth.
+The objective of this data set, which includes 768 patients, all women under 21 years of age and of Pima Indian descent (Hohocán tribe, America), is to diagnostically predict whether a patient has diabetes based on various diagnostic measurements.
+
+
+
+
+
+# 2. Análisis exploratorio de datos (EDA)
+
+Analizaremos la presencia (o no) de enfermedad de diabetes en función de algunas variables relacionadas con la misma: esto se debe a que los diabetólogos expertos necesitan no solo la predicción sino también cuales son las variables relacionadas con la enfermedad.
+
+En la práctica haremos un compromiso entre ambas aproximaciones, la del **aprendizaje automático** (**machine learning**) en la que lo importante es la predicción y la de la **estadística** que nos ayuda a la interpretación de los parámetros con el fin de estudiar las variables relacionadas con la respuesta.
+
+
+Mostramos, a continuación, las variables utilizadas en el estudio:
+
+1. **Pregnancies**: número de veces que ha estado embarazada la persona de estudio.
+2. **Glucose**: concentración de glucosa plasmática (mg/dl) a las 2 horas en una prueba de tolerancia a la glucosa oral.
+3. **BloodPressure:** presión arterial diastólica (mm/Hg) es la cantidad de presión que hay en las arterias ente un latido y otro.
+4. **SkinThickness:** espesor del pliegue cutáneo del triceps (mm).
+5. **Insulin:** 2-Hour serum insulin (mu U/ml); prueba de insulina que consiste en analizar antes de administrar la glucosa y 2 horas después para ver la respuesta de la insulina a la glucosa.
+6. **BMI:** Body mass index (peso en kg/(altura en m)^2); método utilizado para estimar la cantidad de grasa corporal que tiene una persona, y determinar por tanto si el peso está dentro del rango normal, o por el contrario, se tiene sobrepeso o delgadez.
+7. **DiabetesPedigreeFunction:** es la función que asigna la probabilidad de padecer diabetes según los antecedentes familiares.
+8. **Age:** edad en años de la persona de estudio
+9. **Outcome:** es la variable repuesta que indica si el paciente es diabético o no (1 = sí; 0 = no).
+
+
+## Los datos: EDA inicial
+Los datos pueden encontrase en el repositorio UCI:
+https://www.kaggle.com/datasets/mathchi/diabetes-data-set/data .
+
+Antes de comenzar, colocamos nuestro directorio de trabajo, del que lleremos los datos, e importaremos las librerías necesarias.
+
+Leemos los datos que habremos puesto en el directorio de trabajo. Utilizaremos la función *pd.read.csv* de *Pandas* y guardaremos los datos en un *data frame* que denominaremos *diabetes*. Mostramos la dimensión de los datos y la cabecera para asegurarnos de que los hemos leido correctamente.
+
+```{r}
+library(readxl)
+diabetes <- read_excel("C:/Users/imbri/OneDrive/Desktop/ERASMUS/MINERIA DE DATOS/diabetes.xls")
+View(diabetes)
+```
+
+```{r}
+# Obtenemos la clase del objeto diabetes que hemos cargado y comprobamos que es un data frame.
+class(diabetes)
+
+# Comprobamos con str() la estructura del objeto y vemos que variables y de qué tipo está compuesto.
+str(diabetes)
+
+# Obtenemos las primeras 5 líneas del dataframe presion con head()
+head(diabetes)
+
+# Vemos la dimensión de nuestro dataframe
+dim(diabetes)
+
+```
+
+El dataset cargado es un data frame que contiene 768 individuos y 9 variables. La variable dependiente es Outcome (que voy a llamar DiabetesPresence) y es una variable numérica que voy a convertir en factor; las otras 8 variables numéricas son variables explicativas.
+
+
+Cambiar los nombres de las columnas por otros más explicativos puede ayudarnos después a la interpretación de los resultados y por eso vamos a cambiar el nombre de la columna Outcome en DiabetesPresence: 
+```{r}
+# Las columnas del archivo son:
+names(diabetes)
+# Cambiam
+OldNames=colnames(diabetes)
+colnames(diabetes)=c('Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age','DiabetesPresence')
+# hemos cambiado el nombre de la columna Outcome en DiabetesPresence
+```
+
+
+## Limpieza y adecuación de los datos
+
+Antes de realizar cualquier análisis, procederemos al preprocesamiento de los datos para organizarlos de manera que las funciones estadísticas o de clasificación puedan leerlos e interpretarlos correctamente. Es necesario definir adecuadamente los tipos de variables, tratar los datos faltantes e identificar posibles valores atípicos. Esto mejorará la interpretación y evitará errores. Todas las variables se han importado como numéricas o characters: 
+
+```{r}
+Classes=sapply(diabetes,class)
+Classes
+```
+
+La variable que debemos transformar es "DiabetesPresence", ya que está importada como numérica, pero debería ser categórica. Además, debemos asegurarnos de que las variables "DiabetesPedigreeFunction" y "BMI" se traten como numéricas, ya que han sido importadas como characters:
+```{r}
+# Convertimos DiabetesPresence en un factor con etiquetas "No" y "Sí"
+diabetes$DiabetesPresence <- factor(diabetes$DiabetesPresence, 
+                                  levels = c(0, 1), 
+                                  labels = c("No", "Si"))
+
+diabetes$DiabetesPedigreeFunction <- as.numeric(diabetes$DiabetesPedigreeFunction)
+diabetes$BMI=as.numeric(diabetes$BMI)
+```
+
+Como información general, obtenemos el número de mujeres afectadas por diabetes en nuestro conjunto de datos:
+```{r include=FALSE, echo=FALSE}
+# Número de personas con diabetes
+num_diabetes <- sum(diabetes$DiabetesPresence == "Si")
+
+# Número de personas sin diabetes
+num_no_diabetes <- sum(diabetes$DiabetesPresence == "No")
+```
+
+```{r}
+# Imprimir resultados
+cat("Número de personas con diabetes:", num_diabetes, "\n")
+cat("Número de personas sin diabetes:", num_no_diabetes, "\n")
+```
+
+
+
+Comprobamos de nuevo las clases de las variables, ahora modificadas:
+```{r}
+Classes=sapply(diabetes,class)
+Classes
+```
+
+
+Ahora ya tenemos la matriz completa y lista para los análisis. 
+
+Buscamos los datos perdidos:
+```{r}
+which(is.na(diabetes))
+```
+En este caso la matriz está completa, por esa razón no se muestra ningún resultado.
+
+
+Ahora representamos los diagramas de caja (boxplots) que son una herramienta visual útil para comprender la distribución de datos y detectar valores atípicos, conocidos como "outliers", o errores del dataset. Cada gráfico representa la distribución de una variable específica en conjunto con los datos relativos a la presencia o ausencia de diabetes. Por ejemplo, el primer gráfico muestra la distribución de días para pacientes con y sin diabetes, mientras que el segundo gráfico muestra la distribución del número de pacientes. Los puntos fuera del diagrama de caja indican valores atípicos o errores.
+
+```{r}
+
+#Identifico posibles outliers en la variable Age
+outliers <- boxplot.stats(diabetes$Age)$out
+
+#Hago lo mismo para el resto de las variables
+
+outliers1 <- boxplot.stats(diabetes$Pregnancies)$out
+
+outliers2 <- boxplot.stats(diabetes$Glucose)$out
+
+outliers3 <- boxplot.stats(diabetes$BloodPressure)$out
+
+outliers4 <- boxplot.stats(diabetes$SkinThickness)$out
+
+outliers5 <- boxplot.stats(diabetes$Insulin)$out
+
+outliers6 <- boxplot.stats(diabetes$BMI)$out
+
+outliers7 <- boxplot.stats(diabetes$DiabetesPedigreeFunction)$out
+
+```
+
+
+Observamos también que no hay datos duplicados en nuestro dataset:
+```{r}
+duplicated_rows <- diabetes[duplicated(diabetes), ]
+duplicated_rows
+# no tenemos duplicados 
+```
+
+
+## Feature engineering
+Al analizar el resumen estadístico del conjunto de datos de diabetes es posible observar algunas inconsistencias en los valores mínimos y máximos de varias variables:
+
+- **DiabetesPedigreeFunction:** no puede ser mayor que 1 ya que es una probabilidad
+- Los valores de **BloodPressure** no pueden ser inferiores a 40 (tendríamos un sujeto muerto) y superiores a 130 (mm/Hg)
+- Los valores de **Glucose** no pueden ser inferiores a 40 (mg/dl)
+- Los valores de **SkinThickness** no pueden ser inferiores a 5 (mm).
+- Los valores de **Insulin** no pueden ser inferiores a 5 (mu U/ml)
+- Los valores de **IMB** no pueden ser inferiores a 10 (peso en kg/(altura en m)^2)
+
+
+```{r}
+summary(diabetes)
+```
+
+```{r include=FALSE, echo=FALSE}
+
+##DIABETESPEDIGREEFUNCTION
+# Primero extraemos los valores mayores a 1000, y como vemos debemos dividirlos todos entre 10000 para que tomen un valor inferior a 1 siendo probabilidades
+# Extracción de los valores mayores de 1000
+valores_mayores_de_1000<-diabetes$DiabetesPedigreeFunction[diabetes$DiabetesPedigreeFunction > 1000]
+
+# Divide los valores mayores de 1 por 10000
+valores_mayores_de_1000 <- valores_mayores_de_1000 / 10000
+
+# Asigna los valores divididos nuevamente a la columna DiabetesPedigreeFunction
+diabetes$DiabetesPedigreeFunction[diabetes$DiabetesPedigreeFunction > 1000] <- valores_mayores_de_1000
+
+# Luego extraemos los valores restantes mayores a 1 y en este caso vemos que todos son divisibles por 10 para obtener un valor adecuado a una probabilidad.
+# Extracción de los valores mayores de 1
+valores_mayores_de_1 <- diabetes$DiabetesPedigreeFunction[diabetes$DiabetesPedigreeFunction > 1]
+
+valores_mayores_de_1 <- valores_mayores_de_1 / 10
+
+diabetes$DiabetesPedigreeFunction[diabetes$DiabetesPedigreeFunction > 1] <- valores_mayores_de_1
+
+
+## GLUCOSE
+GLmenores_de_40 <- diabetes$Glucose[diabetes$Glucose <40]
+# vemos que hay 5 valores iguales a 0
+
+# calculamos el promedio de Glucose excluyendo los 0 y reemplazamos los valores incorrectos:
+mean_glucose <- round(mean(diabetes$Glucose[diabetes$Glucose != 0], na.rm = TRUE))
+
+diabetes$Glucose[diabetes$Glucose == 0] <- mean_glucose
+summary(diabetes$Glucose)
+
+
+## SKINTHICKNESS
+# El único valor atípico que se nos proporciona en esta variable es 99, pero esto puede ser posible, por lo que no lo corregiremos; sin embargo, los valores inferiores a 5 mm son imposibles y, por lo tanto, los corregiremos.
+# Definimos un valor mínimo aceptable
+min_skinthickness_value <- 5
+menores_de_5<-diabetes$SkinThickness[diabetes$SkinThickness <5]
+
+# Cálculamos el promedio sin los errores
+mean_skinthickness <- round(mean(diabetes$SkinThickness[diabetes$SkinThickness >= min_skinthickness_value], na.rm = TRUE))
+
+# Reemplazo de valores extremadamente bajos (imposible para una persona viva) por el promedio
+diabetes$SkinThickness[diabetes$SkinThickness < min_skinthickness_value] <- mean_skinthickness
+summary(diabetes$SkinThickness)
+
+
+### BLOODPRESSURE
+# Un individuo vivo no puede tener una presión arterial inferior a 30, por lo que sustituiremos los valores inferiores con el promedio. Además, una persona puede tener valores de presión arterial hasta 130, por lo que no corregiremos los valores que estén por debajo de 130.
+# Definición de los valores mínimos y máximos aceptables
+min_bp <- 40
+max_bp <- 130
+
+# Cálculo del promedio excluyendo los valores que no cumplen los criterios
+mean_bp <- round(mean(diabetes$BloodPressure[diabetes$BloodPressure >= min_bp & diabetes$BloodPressure <= max_bp], na.rm = TRUE))
+
+# Reemplazo de valores extremos por el promedio.
+diabetes$BloodPressure[diabetes$BloodPressure < min_bp | diabetes$BloodPressure > max_bp] <- mean_bp
+
+# Visualización del resultado
+summary(diabetes$BloodPressure)
+
+
+### INSULIN 
+# Vamos a corregir los valores de algunos valores atípicos que son imposibles de existir, pero aún así quedan valores grandes que podrían indicar hiperinsulina o condiciones patológicas graves y que debemos estudiar.
+# Otra cosa que debemos hacer es establecer un mínimo en los valores de insulina, porque no puede haber un individuo que tenga valores iguales a 0 en la sangre.
+# Definir un valor mínimo aceptable
+min_insulin_value <- 5
+menores_de_5insulin<-diabetes$Insulin[diabetes$Insulin <5]
+
+# Definir un valor máximo aceptable
+max_insulin_value <- 500  # Ad esempio, 500 µU/ml
+
+mean_insulin_a <- round(mean(diabetes$Insulin[diabetes$Insulin >= min_insulin_value & diabetes$Insulin <= max_insulin_value], na.rm = TRUE))
+
+# Reemplazo de valores extremos por el promedio
+diabetes$Insulin[diabetes$Insulin > max_insulin_value | diabetes$Insulin < min_insulin_value] <- mean_insulin_a
+
+summary(diabetes$Insulin)
+
+
+
+### BMI
+# No corregiremos los valores atípicos del BMI, porque incluso si son grandes, son posibles en nuestro conjunto de datos.
+# Además en este caso el BMI es un índice que no puede ser igual a 0, por lo que reemplazamos los valores que son iguales a 0 por el promedio.
+# Cálculo del promedio excluyendo valores nulos.
+mean_bmi <- round(mean(diabetes$BMI[diabetes$BMI != 0], na.rm = TRUE))
+
+# Reemplazo de valores iguales a 0 con el promedio
+diabetes$BMI[diabetes$BMI == 0] <- mean_bmi
+
+summary(diabetes$BMI)
+
+
+```
+
+Eliminamos los errores de nuestro dataset y los corregimos con el promedio: 
+```{r}
+# Por lo tanto, hemos corregido nuestro conjunto de datos colocando valores de rango que nuestras variables pueden asumir para eliminar los errores que se habían cometido.
+summary(diabetes)
+```
+
+
+Guardamos los datos en formato R, una vez procesados.
+```{r}
+save(diabetes, file = "diabetes.rda")
+```
+
+
+
+## EDA final: descritiva básica 
+
+La desviación típica es una medida de la cantidad de variabilidad o dispersión de un conjunto de datos
+
+$$S = \sqrt {{{\sum\nolimits_{i = 1}^n {{{\left( {{x_i} - \bar x} \right)}^2}} } \over n}} $$
+
+```{r include=FALSE, echo=FALSE}
+summary(diabetes[,Classes=="numeric"])
+```
+```{r}
+apply(diabetes[,Classes=="numeric"],2,sd)
+```
+
+Los resultados de la desviación estándar de las variables numéricas del dataset `diabetes` muestran una variabilidad considerable en algunos casos y moderada en otros. En particular, los niveles de glucosa e insulina presentan una alta variabilidad (30.44 y 67.05, respectivamente), lo que indica diferencias significativas en estas medidas entre las pacientes. La presión arterial y la edad también muestran una variabilidad considerable (11.70 y 11.76, respectivamente). Por otro lado, el número de embarazos, el grosor de la piel y el índice de masa corporal tienen una variabilidad moderada (3.37, 8.79 y 6.88, respectivamente). Finalmente, la función de pedigrí de diabetes, que mide la probabilidad de tener diabetes en función del historial familiar, presenta una baja variabilidad (0.23), sugiriendo que los valores están más concentrados alrededor de la media. Esto indica que, en la muestra de datos analizada, las probabilidades de tener diabetes debido a factores hereditarios son relativamente similares entre las pacientes. Esta baja variabilidad podría implicar que la mayoría de las pacientes tienen una predisposición hereditaria. Además, este hallazgo resalta la importancia de otros factores de riesgo no hereditarios, como los estilos de vida y las condiciones médicas individuales, que podrían desempeñar la incidencia de diabetes en la población estudiada.
+
+
+Podemos hacer distintas representaciones gráficas para las variables.  
+Vamos a utilizar los paquetes *ggplot2* y *gridExtra*.
+
+```{r include=FALSE, echo=FALSE}
+library(ggplot2)
+library(gridExtra)
+```
+
+
+## La variable respuesta (label)
+
+El siguiente análisis se centra en la variable dependiente `DiabetesPresence`, que indica la presencia o ausencia de diabetes en los pacientes. 
+El número de mujeres afectadas por diabetes en nuestro conjunto de datos:
+```{r include=FALSE, echo=FALSE}
+# Número de personas con diabetes
+num_diabetes <- sum(diabetes$DiabetesPresence == "Si")
+
+# Número de personas sin diabetes
+num_no_diabetes <- sum(diabetes$DiabetesPresence == "No")
+```
+
+```{r}
+# Imprimir resultados
+cat("Número de personas con diabetes:", num_diabetes, "\n")
+cat("Número de personas sin diabetes:", num_no_diabetes, "\n")
+```
+
+
+Con el código filtramos el dataframe original para crear dos subconjuntos: uno que contiene solo las filas con `DiabetesPresence` igual a "Sí" y el otro con `DiabetesPresence` igual a "No". De cada uno de estos subconjuntos se extrae la columna `Age`, que representa la edad de los pacientes y se crean dos histogramas separados para visualizar la distribución de las edades en los dos grupos, facilitando la identificación de posibles diferencias significativas en la distribución de la edad entre los pacientes diabéticos y no diabéticos.
+```{r}
+par(mfrow = c(1, 2))
+
+# Filtra el dataframe para seleccionar solo las filas con DiabetesPresence == "Si"
+si_diabetes_data <- diabetes[diabetes$DiabetesPresence == "Si", ]
+
+# Extrae solo la columna "Age" del dataframe resultante
+si_diabetes_edad <- si_diabetes_data$Age
+
+# Ahora convierte el vector de edades a numérico
+si_diabetes_edad <- as.numeric(si_diabetes_edad)
+
+hist(si_diabetes_edad, 
+     main = "Histograma de las edades de los que tienen diabetes", 
+     xlab = "Edad",
+     col = "skyblue",
+     cex.main = 0.6)
+
+
+# Filtra el dataframe para seleccionar solo las filas con DiabetesPresence == "No"
+no_diabetes_data <- diabetes[diabetes$DiabetesPresence == "No", ]
+
+# Extrae solo la columna "Age" del dataframe resultante
+no_diabetes_edad <- no_diabetes_data$Age
+
+# Ahora convierte el vector de edades a numérico
+no_diabetes_edad <- as.numeric(no_diabetes_edad)
+
+
+hist(no_diabetes_edad, 
+     main = "Histograma de las edades de los que no tienen diabetes", 
+     xlab = "Edad",
+     col = "salmon",
+     cex.main = 0.6)
+
+
+```
+
+A pesar del elevado número de mujeres entre 21 y 25 años que no padecen diabetes, aún podemos comprobar que la frecuencia de enfermar sigue siendo muy alta entre las personas más jóvenes, que reportan problemas de diabetes desde edades tempranas.
+La frecuencia de presencia de diabetes sigue siendo muy alta hasta mujeres de alrededor de 45 años: cuando llegan a la edad de cincuenta años es diagnosticado de esta enfermedad un número muy elevado de ellos, y por este motivo seguramente desarrollarán problemas cardiacos, renales y muertes prematuras. 
+
+```{r  include=FALSE, echo=FALSE}
+# Conta el número de personas con más de 50 años de edad
+numero_personas_mayores_50 <- sum(diabetes$Age > 50)
+
+# Imprimir el número de personas con más de 50 años de edad
+print(numero_personas_mayores_50)
+```
+```{r}
+print(paste("El número de personas con más de 50 años de edad es:", numero_personas_mayores_50))
+```
+De hecho podemos notar cómo en mi conjunto de datos, las que tienen más de 50 años son solamente 81 personas; una razón para tener tan pocos sujetos mayores de 50 años (sabiendo que el conjunto de datos recopila información sobre mujeres de 21 años o más), como también se informa en varios artículos sobre esta tribu, podría deberse también a una probable alta tasa de mortalidad incluso en sujetos no ancianos, debido a la enfermedad analizada.
+
+
+Podemos hacer diagramas de dispersión coloreando los resultados de acuerdo con la respuesta. Por ejemplo, colocando la edad, el BMI y la presencia de diabete:
+
+```{r fig.width=8, fig.height=6}
+ggplot(data=diabetes, aes(x=Age, y=as.factor(cut(BMI, 
+                                                  breaks = c(-Inf, 18.5, 24.9, 29.9, Inf), 
+                                                  labels = c("Bajo peso", "Peso normal", "Sobrepeso", "Obesidad"))), color = DiabetesPresence)) +
+  geom_point()+
+  labs(y = "BMI")
+
+```
+
+Desde este grafico parece una separación bastante clara entre los puntos de color azul claro (presencia de diabetes) y rojo (no presencia de diabetes): podemeos afirmar que el diabetes está presente en mujeres con sobrepeso y en las que tienen obesidad, sobre todo en las personas entre los 30 y 70 años.
+Se puede entender que la presencia de diabetes ciertamente está influenciada por el índice de masa corporal, ya que como es posible ver, los individuos con un BMI normal generalmente no están sujetos a la presencia de la enfermedad.
+
+Combinemos ahora la edad, la presión sanguínea y la presencia de diabete:
+
+```{r fig.width=8, fig.height=6}
+ggplot(data=diabetes, aes(x=Age, y=as.factor(cut(BloodPressure, 
+                                                  breaks = c(-Inf, 60, 80, Inf), 
+                                                  labels = c("Baja", "Normal", "Alta"))), color = DiabetesPresence)) +
+  geom_point()+
+  labs(y = "BloodPressure")
+
+
+```
+
+En este caso la separación entre presión arterial y edad no está del todo clara, aunque se puede notar que la presencia de diabetes se presenta especialmente en sujetos con hipertensión arterial y aproximadamente mayores de 40 años, debido a la mayor acumulación de eventos (puntos claros) en este espacio.
+
+## Variables de tipo factor
+Aunque las variables **BloodPressure** y **BMI** no sean factores, las convertimos en las siguientes líneas de código para poder ver mejor las condiciones de nuestros sujetos de estudio.
+Vamos a hacer un panel de graficos en ggplot2. Colocaremos varios diagramas en un panel.
+
+```{r}
+library(gridExtra)
+library(ggplot2)
+g1 <- ggplot(diabetes, aes(x=as.factor(cut(BloodPressure, 
+                                            breaks = c(-Inf, 60, 80, Inf), 
+                                            labels = c("Baja", "Normal", "Alta"))))) +
+  geom_bar(stat="count", width=0.7, fill="steelblue") +
+  theme_minimal() +
+  labs(x = "Blood Pressure Category", y = "Count", 
+       title = "Distribución de categorías de presión arterial")
+
+
+g2 <- ggplot(diabetes, aes(x = as.factor(cut(BMI, 
+                                             breaks = c(-Inf, 18.5, 24.9, 29.9, Inf), 
+                                             labels = c("Bajo peso", "Peso normal", "Sobrepeso", "Obesidad"))))) +
+  geom_bar(stat = "count", width = 0.7, fill = "red") +
+  theme_minimal()+
+  labs(x = "BMI Category", y = "Count", 
+       title = "Distribución de categorías de peso")
+
+
+g3 = ggplot(diabetes, aes(x=DiabetesPresence))+
+  geom_bar(stat="count", width=0.7, fill="yellow")+
+  theme_minimal()+
+  labs(x = "Diabetes Presence", y = "Count", 
+       title = "Distribución de diabetes")
+
+grid.arrange(g1, g2, g3, nrow = 3, ncol=1)
+
+```
+
+La distribución de la presión arterial de los sujetos parece ser la menos grave entre las mostradas; sin embargo, las distribuciones más preocupantes son aquellas relacionadas con la presencia de diabetes (recordemos que hay 268 mujeres afectadas de las 768 en el conjunto de datos, un número particularmente alto para una muestra de menos de 1000 sujetos) y el índice de masa corporal (BMI), ya que la mayoría de las mujeres muestran obesidad.
+
+
+## Variables de tipo numérico
+Exploramos relaciones mediante box-plots para las 8 variables numéricas.
+
+```{r}
+p1 <- ggplot(diabetes, aes(x = DiabetesPresence, y = Pregnancies, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de Embarazos",
+       x = "Diabetes",
+       y = "Embarazos") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p2 <- ggplot(diabetes, aes(x = DiabetesPresence, y = Glucose, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de Glucosa",
+       x = "Diabetes",
+       y = "Glucosa") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p3 <- ggplot(diabetes, aes(x = DiabetesPresence, y = SkinThickness, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de Grosor de la piel",
+       x = "Diabetes",
+       y = "Grosor piel") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p4 <- ggplot(diabetes, aes(x = DiabetesPresence, y = Insulin, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de Insulina",
+       x = "Diabetes",
+       y = "Insulina") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p5 <- ggplot(diabetes, aes(x = DiabetesPresence, y = DiabetesPedigreeFunction, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de probabilidad de tener diabetes",
+       x = "Diabetes",
+       y = "Probab. diabetes") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p6 <- ggplot(diabetes, aes(x = DiabetesPresence, y = Age, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de Edades",
+       x = "Diabetes",
+       y = "Edades") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p7 <- ggplot(diabetes, aes(x = DiabetesPresence, y = BMI, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja del BMI",
+       x = "Diabetes",
+       y = "BMI") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+p8 <- ggplot(diabetes, aes(x = DiabetesPresence, y = BloodPressure, color = DiabetesPresence)) + 
+  geom_boxplot() + 
+  labs(title = "Diagrama de caja de la Presión Arterial",
+       x = "Diabetes",
+       y = "Presión Arterial") +
+  theme(axis.text.x = element_text(size = 3), axis.text.y = element_text(size = 3), 
+        plot.title = element_text(size = 7))
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, nrow = 4, ncol = 2, 
+             heights = c(9,9,9,9))
+
+```
+
+
+Las mujeres que han tenido menos embarazos se puede ver que son los individuos que menos tienen diabetes (aunque no esta una diferencia muy grande entre ellas). Podemos tambien afirmar que los individuos que tienen un mayor nivel de glucose son mas afectos al diabetes. En final tambien la edad influye en la presencia de diabetes en las pacientes: las más jóvenes se ven menos afectados por la diabetes.
+No podemos ver una clara distincion entre las personas que tienen y los que no tienen diabetes en las variables SkinThickness, Insulin y DiabetesPedigreeFunction.
+
+
+
+Finalmente, analizamos más detalladamente las correlaciones entre las variables del conjunto de datos a través de la matriz de correlación:
+
+```{r fig.width=8, fig.height=6 }
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+
+# Seleccione todas las columnas numéricas en el marco de datos de diabetes
+numeric_columns <- diabetes %>%
+  select(where(is.numeric))
+
+# Convertir temporalmente DiabetesPresence en una variable numérica
+numeric_columns$DiabetesPresence_numeric <- as.numeric(diabetes$DiabetesPresence)
+
+# Calcular la matriz de correlación
+correlation_matrix <- cor(numeric_columns)
+
+# Convertir la matriz de correlación en un marco de datos
+correlation_df <- melt(correlation_matrix)
+
+# Crear gráfico de matriz de correlación
+ggplot(correlation_df, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 1)), size = 3) +  
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Correlación") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 8, hjust = 1),
+        axis.text.y = element_text(size = 8)) +
+  labs(title = "Matriz de correlación",
+       x = "Variables", y = "Variables")
+
+```
+
+A través de la matriz de correlación podemos ver cómo todas estas son relaciones directas, aunque en su mayoría débiles. Sobre todo, podemos observar que la variable DiabetesPedigreeFunction no tiene más que una correlación muy débil con el BMI, por lo que es mejor eliminar la variable de nuestro conjunto de datos para evitar errores en predicciones posteriores.Esta correlación de 0,1 sugiere que, en el conjunto de datos considerado, la función genealógica (que mide la probabilidad de tener diabetes en función de los antecedentes familiares) tiene un impacto limitado sobre la presencia de diabetes; esto significa que, al menos en esta muestra de datos, otros factores además de los antecedentes familiares podrían tener una influencia más significativa en la diabetes, como la dieta, el estilo de vida y la actividad física.
+La eliminación de esta variable se implementó únicamente después de comparar los 2 modelos: el primero con la variable presente y el segundo sin, estableciendo que la ausencia de esta variable en realidad no cambia ni altera los resultados obtenidos. Esta elección se hizo para poder centrarse más en las variables restantes que tienen una influencia mucho más incisiva.
+
+
+```{r}
+# Eliminar la columna DiabetesPedigreeFunction del conjunto de datos
+diabetes <- diabetes[ , !(names(diabetes) %in% "DiabetesPedigreeFunction")]
+```
+
+
+
+# 3. Métodos estadisticos
+
+"The term machine learning refers to the automated detection of meaningful patterns in data. In the past couple of decades it has become a common tool in almost any task that requires information extraction from large data sets. We are surrounded by a machine learning based technology".
+
+Esto es lo que encontramos escrito en el texto "Understanding machine learning: from theory to algorithms", editado por Shai Shalev-Shwartz y Shai Ben-David, publicado en 2014 por Cambridge University Press, y podemos afirmar con absoluta certeza, a diez años de la publicación del libro de texto, que las técnicas de aprendizaje automático hoy en día se han fortalecido considerablemente, arraigándose en el uso de nuestra sociedad.
+
+El aprendizaje automático (ML) es una rama de la inteligencia artificial (IA) que se ocupa del desarrollo de algoritmos y modelos que permiten a las computadoras aprender de los datos y hacer predicciones o tomar decisiones sin estar programadas explícitamente para realizar esas actividades específicas. Los modelos de ML se entrenan con datos históricos para identificar patrones y relaciones, que luego se utilizan para hacer predicciones sobre nuevos datos.
+
+Existen varios tipos de aprendizaje automático, que van desde el supervisado hasta el no supervisado, muchos de los cuales son aplicables y útiles en el campo médico, más específicamente en las predicciones de diversas enfermedades, basadas en datos previamente recopilados. Los modelos de ML pueden analizar grandes cantidades de datos clínicos para identificar signos y síntomas de enfermedades; pueden predecir la probabilidad de que un paciente desarrolle una enfermedad específica basándose en datos demográficos, históricos clínicos y resultados de pruebas, como por ejemplo los modelos de regresión logística y bosques aleatorios, que se utilizan para predecir el riesgo de diabetes, enfermedades cardíacas y otras condiciones crónicas.
+
+Por esta razón, en este estudio he optado por comenzar aplicando un modelo de regresión logística regularizada, seguido de un análisis realizado a través de bosques aleatorios, para luego analizar todo más específicamente a través del kNN.
+
+
+## Regresión Logística y Regresión Logística Regularizada
+
+La **regresión logística** es una técnica estadística utilizada principalmente para modelar la relación entre un conjunto de variables independientes y una variable dependiente binaria (declarada como 0 o 1, "no" o "sí"), y es comúnmente empleada cuando se quiere clasificar los datos en dos categorías distintas, como en nuestro caso la presencia o ausencia de una enfermedad.
+Este modelo nos permite interpretar \( h(x) \) como la probabilidad de que la etiqueta de \( x \) sea 1.
+
+Utiliza una función sigmoidea, específicamente la función logística, para mapear la combinación lineal de las variables independientes a un rango de probabilidad entre 0 y 1. La función sigmoidea está definida como:
+
+\[ \phi_{\text{sig}}(z) = \frac{1}{1 + e^{-z}} \]
+
+Componiendo esta función sobre la clase de funciones lineales, obtenemos el modelo de regresión logística:
+
+\[ P(Y=1|\mathbf{X}) = \phi_{\text{sig}}(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p) \]
+
+que puede expandirse como:
+
+\[ P(Y=1|\mathbf{X}) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p)}} \]
+
+donde:
+- \(P(Y=1|\mathbf{X})\) es la probabilidad de que la salida \(Y\) sea 1 dado el vector de características \(\mathbf{X}\).
+- \(\beta_0\) es la intersección.
+- \(\beta_1, \beta_2, \cdots, \beta_p\) son los coeficientes del modelo.
+- \(X_1, X_2, \cdots, X_p\) son las variables independientes.
+
+
+Sin embargo, la regresión logística estándar puede tener problemas de sobreajuste, especialmente cuando se tienen muchas variables explicativas en comparación con el número de observaciones. Por eso es mejor usar una variante más avanzada del algoritmo que introduce un término de penalización, y esta es la **regresión logística regularizada**, que nos ayuda a mejorar la capacidad de generalización del modelo. En el contexto de nuestro conjunto de datos sobre la diabetes, esta técnica ayuda a identificar los predictores más significativos y a reducir el impacto de las variables menos relevantes que podrían causar un modelo demasiado complejo y propenso al sobreajuste, favoreciendo además la selección de un subconjunto de variables predictoras que son más influyentes para el modelo, mejorando así su interpretabilidad y robustez.
+
+
+Los parámetros fundamentales que se utilizan son Alfa y Lambda:
+
+- Alfa (α): parámetro que controla el tipo de penalización aplicada al modelo. La regresión logística regularizada puede utilizar dos tipos principales de penalización, que son LASSO, cuando α=1, tendiendo a reducir los coeficientes menos significativos a cero y facilitando la selección de variables, mientras que la penalización Ridge se tiene cuando α=0, reduciendo la magnitud de todos los coeficientes pero sin anularlos completamente. Cuando α está entre 0 y 1 (Elastic Net) el modelo combina ambas penalizaciones Lasso y Ridge, ofreciendo un equilibrio entre la reducción y la selección de variables.
+- Lambda (λ): parámetro que controla la magnitud de la penalización aplicada a los coeficientes. Un valor de λ más alto implica una penalización más fuerte, que reduce aún más los coeficientes de los predictores. La elección del valor óptimo de λ es crucial para encontrar el equilibrio adecuado entre sesgo y varianza.
+
+En nuestro caso, la regresión logística regularizada nos permitirá construir un modelo predictivo eficaz para predecir la presencia de diabetes basándonos en variables como la edad, glucosa, presión arterial, etc. optimizando los parámetros α y λ.
+
+
+## Random forest
+
+**Random forest** es un algoritmo basado en la agregación de múltiples árboles de decisión para mejorar el rendimiento predictivo y reducir el riesgo de sobreajuste. Se utiliza tanto para problemas de clasificación como de regresión.
+
+"Understanding machine learning: from theory to algorithms" curado de Shai Shalev-Shwartz y Shai Ben-David, y publicado en el 2014 por Cambridge University Press" afirma que "with a probability of at least 1 − δ over a sample of size m, for every n and every decision tree h ∈ H with n nodes it holds that:
+
+\[ L_d(h) \leq L_s(h) + \sqrt{\frac{(n+1)\log_2(d+3) + \log(2/\delta)}{2m}} \]
+
+
+This bound performs a tradeoff: on the one hand, we expect larger, more complex decision trees to have a smaller training risk, LS(h), but the respective value of n will be larger. On the other hand, smaller decision trees will have a smaller value of n, but LS(h) might be larger. Our hope (or prior knowledge) is that we can find a decision tree with both low empirical risk, LS(h), and a number of nodes n not too high. Our bound indicates that such a tree will have low true risk, LD(h)."
+
+El límite proporcionado en la ecuación sugiere una regla de aprendizaje para los árboles de decisión: se busca un árbol que minimice el lado derecho de la ecuación, pero desafortunadamente, resolver este problema es computacionalmente difícil; como consecuencia, los algoritmos prácticos de aprendizaje de árboles de decisión se basan en heurísticas como un enfoque ávido, donde el árbol se construye gradualmente y se toman decisiones óptimas localmente durante la construcción de cada nodo. Sin embargo, esto no garantiza devolver el árbol de decisión óptimo a nivel global, pero tiende a funcionar bien en la práctica.
+
+Este proceso comienza con un árbol con una sola hoja (la raíz) a la que asignamos una etiqueta según un voto mayoritario entre todas las etiquetas del conjunto de entrenamiento. Luego, se realizan una serie de iteraciones, y en cada una de ellas se examina el efecto de dividir una sola hoja. Luego se define una medida de 'ganancia' que cuantifica la mejora debido a esta división, y luego, entre todas las divisiones posibles, elegimos aquella que maximiza la ganancia.
+
+Random Forest construye un conjunto (bosque) de árboles de decisión independientes y los combina para producir un resultado final. Desde la fase inicial, donde se crea un subconjunto aleatorio del conjunto de datos de entrenamiento original para cada árbol (bootstrap sampling), que luego se entrena en una muestra diferente del conjunto de datos, se llega a la fase final donde se selecciona un subconjunto aleatorio de características para cada nodo del árbol, eligiendo así la mejor división (split) y mejorando la pureza del nodo.
+
+Los parámetros de este modelo son:
+
+- **mtry**: controla el número máximo de variables consideradas para la división de cada nodo del árbol. Cuanto mayor sea el valor, más variables se considerarán, lo que hace que los árboles sean más diversos y el modelo más robusto.
+- **splitrule**: determina el criterio utilizado para dividir los nodos del árbol. "gini" (predeterminado) que utiliza el índice de Gini para calcular la pureza de los nodos, y "extratrees" que utiliza una variante de árboles extremadamente aleatorios, aumentando la aleatoriedad.
+- **min.node.size**: indica el número mínimo de muestras necesarias para crear un nodo hoja en el árbol. Aumentar este parámetro puede hacer que los árboles sean más simples y reducir el sobreajuste, lo que hace que las reglas derivadas de un árbol sean más simples y comprensibles, lo que es ventajoso para comunicar los resultados y comprender qué variables influyen más en las decisiones.
+
+
+
+## k-Nearest Neighbors (kNN)
+
+Finalmente, el algoritmo **k-Nearest Neighbors (kNN)** es un algoritmo de aprendizaje supervisado utilizado para clasificación o regresión.
+Los algoritmos de los vecinos más cercanos son algunos de los más simples entre todos los algoritmos de aprendizaje automático: la idea es almacenar el conjunto de entrenamiento y luego predecir la etiqueta de cada nueva instancia basándose en las etiquetas de sus vecinos más cercanos. La lógica detrás de este método se basa en la suposición de que las características utilizadas para describir los puntos son relevantes para su etiquetado, de manera que es probable que puntos cercanos tengan la misma etiqueta. Además, en algunas situaciones, incluso cuando el conjunto de entrenamiento es enorme, la búsqueda del vecino más cercano puede realizarse de manera extremadamente rápida.
+
+También es importante destacar que el método de los vecinos más cercanos calcula una etiqueta para cualquier punto de prueba, sin buscar un predictor dentro de una clase de funciones predefinida.
+
+Este modelo se basa en varias métricas de distancia, como la distancia de Manhattan, de Minkowski, etc., pero la distancia euclidiana es una de las más comunes y utilizadas. La fórmula para calcular la distancia euclidiana entre dos puntos \( p \) y \( q \) en un espacio \( n \)-dimensional es la siguiente:
+
+\[
+\text{Distancia Euclidiana} = \sqrt{(q_1 - p_1)^2 + (q_2 - p_2)^2 + \ldots + (q_n - p_n)^2}
+\]
+
+Donde:
+
+- \( q_1, q_2, \ldots, q_n \) son las coordenadas del punto \( q \),
+- \( p_1, p_2, \ldots, p_n \) son las coordenadas del punto \( p \).
+
+
+Esto es especialmente adecuado cuando las características tienen unidades de medida similares y cuando se desea evaluar la "distancia" entre los puntos en el espacio de características de manera geométrica. Sin embargo, es importante tener en cuenta que la elección de la métrica de distancia a menudo depende del problema específico y de la naturaleza de los datos.
+
+Su parámetro base es **k**, y es fundamental porque influye directamente en el comportamiento del modelo: valores más bajos pueden provocar una mayor variación en los resultados debido a la sensibilidad a los valores atípicos, mientras que valores más altos pueden conducir a decisiones más estables, pero al mismo tiempo hacer que el modelo sea menos sensible a las variaciones locales en los datos. Por lo tanto, encontrar el valor óptimo de k es crucial para obtener el mejor rendimiento del modelo KNN.
+
+
+## Cross-validation
+
+En todos los algoritmos descritos, una técnica muy importante que se ha utilizado es la **Cross-validation**, esto se debe a que nuestro conjunto de datos, como se puede notar, tiene una cantidad bastante reducida de datos para analizar, lo que nos lleva a no "desperdiciarlos" y, por lo tanto, a hacer el mejor uso posible de ellos.
+Las fórmulas para calcular la validación cruzada dependen del tipo de validación cruzada utilizada, pero las más comunes incluyen la validación cruzada k-fold y la validación cruzada leave-one-out (LOOCV).
+
+**Validación cruzada k-fold**
+El conjunto de datos original se divide en k subconjuntos (pliegues) de aproximadamente igual tamaño. El modelo se entrena en k-1 pliegues y se valida en el pliegue restante, y este proceso se repite k veces, de modo que cada pliegue se utilice como conjunto de validación exactamente una vez.
+
+La fórmula para calcular la precisión media de la validación cruzada k-fold es:
+
+\[
+\text{Precisión} = \frac{1}{k} \sum_{i=1}^{k} \text{Precisión}_{i}
+\]
+
+Donde:
+- \( k \) es el número de pliegues.
+- \( \text{Precisión}_{i} \) es la precisión obtenida en el \( i \)-ésimo pliegue.
+
+
+
+**Validación cruzada Leave-One-Out (LOOCV)**
+En este método, se utiliza un solo ejemplo como conjunto de validación y todos los demás ejemplos se utilizan para el entrenamiento. Este proceso se repite para cada ejemplo en el conjunto de datos.
+
+La fórmula para calcular la precisión media de la LOOCV es:
+
+\[
+\text{Precisión} = \frac{\text{Número de ejemplos clasificados correctamente}}{\text{Número total de ejemplos}}
+\]
+
+
+
+En resumen, la validación cruzada que hemos utilizado nos ha permitido seleccionar el modelo con los mejores hiperparámetros mediante el entrenamiento en los datos de entrenamiento y, una vez seleccionado el mejor modelo, lo hemos utilizado en los datos de prueba para evaluar su adaptabilidad y su capacidad predictiva.
+
+
+## AUC-ROC , sensibilidad y especificidad
+
+La elección que hicimos se realizó con el objetivo de maximizar el área bajo la curva ROC (esto porque nuestro problema es de clasificación), lo que nos da una idea general del rendimiento del modelo: un valor de AUC más alto indica un mejor modelo. La curva ROC es un gráfico que muestra la relación entre la sensibilidad y la especificidad, las dos medidas fundamentales para evaluar el rendimiento de un modelo:
+
+- La sensibilidad mide la proporción de verdaderos positivos entre todos los casos positivos reales. En otras palabras, es la capacidad del modelo para identificar correctamente los casos de diabetes.
+
+\[ \text{Sensibilidad} = \frac{\text{Verdaderos positivos (TP)}}{\text{Verdaderos positivos (TP)} + \text{Falsos negativos (FN)}} \]
+
+Con los **Verdaderos positivos (TP)** que son el número de casos de diabetes correctamente identificados por el modelo y los **Falsos negativos (FN)** que son el número de casos de diabetes que el modelo no ha identificado (es decir, clasificados erróneamente como no afectados por la diabetes).
+
+- La especificidad, por otro lado, mide la proporción de verdaderos negativos entre todos los casos negativos reales. En otras palabras, es la capacidad del modelo para identificar correctamente los casos no diabéticos.
+
+\[ \text{Especificidad} = \frac{\text{Verdaderos negativos (TN)}}{\text{Verdaderos negativos (TN)} + \text{Falsos positivos (FP)}} \]
+
+Con los **Verdaderos negativos (TN)** que son el número de casos no afectados por la diabetes correctamente identificados por el modelo, y los **Falsos positivos (FP)** que son el número de casos no afectados por la diabetes que el modelo ha identificado erróneamente como afectados por la diabetes.
+
+En resumen, cada punto en la curva ROC representa una pareja (sensibilidad; especificidad) para un umbral específico de clasificación:
+
+- Punto (0, 1): clasificador perfecto (100% de sensibilidad y 100% de especificidad) que identifica correctamente todos los casos positivos sin ningún falso positivo; en la práctica, es casi imposible obtener tal punto.
+- Punto (1, 0): clasificador completamente incorrecto: este punto representa un clasificador que está completamente equivocado, informando todos los casos positivos como negativos y viceversa.
+- Línea diagonal: clasificador aleatorio (no mejor que una hipótesis aleatoria).
+
+El área bajo la curva ROC (AUC) proporciona una medida única de la capacidad general del modelo para discriminar entre las clases positivas y negativas:
+
+- **AUC = 1**: modelo perfecto que tiene una capacidad perfecta para discriminar entre las clases positivas y negativas, identificando correctamente todos los verdaderos positivos sin producir falsos positivos.
+- **AUC = 0.5**: modelo sin capacidad discriminativa (equivalente a una hipótesis aleatoria).
+- **AUC < 0.5**: modelo peor que una hipótesis aleatoria, cometiendo errores sistemáticos, clasificando negativos como positivos y viceversa.
+
+
+# 4. Metodología
+
+Vamos a dividir el conjunto completo de individuos en dos partes, un para entrenar el modelo (train), que contiene el 80% de los individuos y otra para validarlo (test) que contiene el restante 20%. Hacemos esto porque si valoramos el modelo con las misma observaciones que usamos para ajustarlo, la bondad del ajuste quedará sobrevalorada.
+
+```{r include=FALSE, echo=FALSE}
+# Dividimos los datos en test y train
+library(caret)
+library(pROC)
+
+# Verificar la estructura de los datos
+str(diabetes)
+
+# Determinar la  proporción deseada para la división
+# Usar el 80% de los datos para entrenamiento
+set.seed(123)
+prop_train <- 0.8  
+
+# Dividir los datos en entrenamiento y test de manera estratificada en funcion de 
+# la variable respuesta
+muestra <- createDataPartition(diabetes$DiabetesPresence, p = prop_train, list = FALSE)
+
+train_datos <- diabetes[muestra, ]
+test_datos <- diabetes[-muestra, ]
+
+# Verificar las dimensiones de los conjuntos de entrenamiento y test
+nrow(train_datos)  # Número de filas en entrenamiento
+nrow(test_datos)   # Número de filas en test
+
+# Verificar la proporción de la variable respuesta (DiabetesPresence) en ambas particiones: 
+prop_train_si <- mean(train_datos$DiabetesPresence == "Si")
+prop_test_si <- mean(test_datos$DiabetesPresence == "Si")
+
+# Calcular el número total de filas en los datos de entrenamiento y los datos de prueba.
+total_train <- nrow(train_datos)
+total_test <- nrow(test_datos)
+```
+
+```{r}
+# Imprimo el número total de personas en los datos de entrenamiento y de prueba y la proporción para cada subconjunto de datos
+print(paste("Número total de personas en los datos de entrenamiento.:", total_train))
+print(paste("Proporción de 'Si (clase positiva)' en datos de entrenamiento:", round(prop_train_si,2)))
+
+print(paste("Número total de personas en los datos de la test:", total_test))
+print(paste("Proporción de 'Si (clase positiva)' en datos de prueba:", round(prop_test_si,2))) 
+```
+
+
+```{r}
+## Utilizamos los mismos folds para todos los modelos
+
+# Crear folds para validación cruzada usando resamples
+# Lo usaré para obligar a que todos los modelos usen los mismos folds
+set.seed(123)
+mis_folds <- createResample(y = train_datos$DiabetesPresence, times = 10, list = TRUE)
+
+# Definir objeto control para el entrenamiento del modelo
+# Configuración de la validación cruzada con los mismos folds para todos los modelos
+ctrl <- trainControl(
+  method = "cv", # Metodo de validacion cruzada
+  number = 10, # Numero de folds para la validacion cruzada
+  index = mis_folds, # Esto es importante
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  verboseIter = TRUE # Mostrar informacion sobre el progreso
+)
+```
+
+
+
+## Regresión logística regularizada
+Este método combina la regresión lineal con la penalización de los coeficientes de los predictores con el fin de reducir el sobreajuste y mejorar la generalización del modelo.
+
+En el código proporcionado, estamos utilizando la regresión regularizada como el primer algoritmo para explorar nuestro conjunto de datos. Este enfoque está justificado por el hecho de que la regresión regularizada es efectiva en el manejo de conjuntos de datos con muchas variables explicativas. Utilizamos la técnica de regresión regularizada (específicamente el método glmnet) para ajustar el modelo a los datos de entrenamiento, explorando diferentes valores de los parámetros de regularización (alfa y lambda) para encontrar el modelo óptimo. Luego, examinamos el comportamiento de los modelos obtenidos para seleccionar el conjunto óptimo de hiperparámetros para nuestro análisis.
+
+En el contexto de nuestro conjunto de datos sobre diabetes, esta técnica ayuda a identificar los predictores más importantes y reducir el impacto de variables menos relevantes.
+
+
+Primero definimos nuestra grilla de parámetros iniciales para glmnet y la entrenamos, obteniendo así un primer modelo con sus hiperparámetros cuyo comportamiento vemos a través del gráfico siguiente:
+
+```{r include=FALSE, echo=FALSE}
+
+# Definir grid de parámetros iniciales para GLMNET
+glmnet_grid = expand.grid(
+  alpha = 0:1,
+  lambda = seq(0.0001, 1, length = 20)
+)
+
+# Entrenamiento modelo GLMNET
+set.seed(123)
+
+glmnet_model <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "glmnet",
+  preProcess = c("center", "scale"),
+  metric="ROC", # Voy a optimizar la métrica AUC-ROC
+  trControl = ctrl,
+  tuneGrid = glmnet_grid
+)
+glmnet_model
+#The final values used for the model were alpha = 0 and lambda = 0.05272632
+```
+
+
+```{r fig.width=8, fig.height=6}
+plot(glmnet_model)
+
+# Este gráfico muestra el rendimiento del modelo en función de los parámetros de regularización alpha y lambda. En particular, visualiza la métrica ROC-AUC (Receiver Operating Characteristic - Area Under Curve) para cada combinación de alpha y lambda probada durante el entrenamiento del modelo.
+
+# El gráfico nos ayuda a identificar la combinación óptima de alfa y lambda que maximiza el rendimiento del modelo.
+```
+
+Ajusto mi grid con lo que he observado y así obtenemos un segundo modelo que contiene mejores valores para nuestros hiperparámetros.
+
+```{r include=FALSE, echo=FALSE}
+glmnet_grid_2 = expand.grid(
+  alpha = 0:1,
+  lambda = seq(0.01, 0.1, length = 100)
+)
+
+# Entrenamiento modelo KNN y con el grid ajustado
+set.seed(123)
+
+glmnet_model_2 <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "glmnet",
+  preProcess = c("center", "scale"),
+  metric="ROC", # Voy a optimizar la métrica AUC-ROC
+  trControl = ctrl,
+  tuneGrid = glmnet_grid_2
+)
+
+glmnet_model_2
+```
+
+
+Veo el comportamiento de los nuevos hiperparámetros: 
+
+```{r fig.width=8, fig.height=6}
+plot(glmnet_model_2)
+
+```
+
+
+
+## Random forest
+En nuestro caso, después de explorar el conjunto de datos de diabetes con la regresión logística regularizada, utilizamos Random Forest como segundo algoritmo, ya que RF puede capturar mejor las interacciones no lineales entre las variables y mejorar aún más la capacidad predictiva del modelo, ofreciendo una evaluación interna de la importancia de las variables, lo que nos ayuda a comprender mejor la influencia de cada predictor en la presencia de diabetes.
+
+Los hiperparámetros que obtenemos y que pueden ser adaptados a nuestro modelo incluyen:
+
+- mtry: el número de variables aleatorias seleccionadas en cada división del árbol.
+- splitrule: la regla de división, que puede ser "gini" o "extratrees", y que determina cómo se realizan las divisiones en los nodos del árbol.
+- min.node.size: el tamaño mínimo del nodo terminal; un nodo más pequeño permite una mayor precisión de las predicciones, mientras que un nodo más grande reduce la complejidad del modelo.
+
+Entrenamos así el modelo inicial (rf_model):
+
+```{r include=FALSE, echo=FALSE}
+
+# Definir grid de parámetros iniciales para Random Forest
+rf_grid <- expand.grid(
+  mtry = c(2, 3, 4),  # Número de variables aleatorias seleccionadas en cada división
+  splitrule = c("gini", "extratrees"), # Regla de división (índice Gini o "Extra Trees")
+  min.node.size = c(1, 5, 10) # Tamaño mínimo del nodo terminal
+)
+
+# Entrenamiento modelo Random Forest
+set.seed(123)
+
+rf_model <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "ranger",
+  preProcess = c("center", "scale"),
+  metric="ROC",
+  trControl = ctrl,
+  tuneGrid = rf_grid
+)
+
+rf_model
+
+
+```
+
+Observamos el modelo (rf_model) en el siguiente grafico:
+
+```{r}
+# Veo el comportamiento de los hiperparámetros
+plot(rf_model)
+```
+
+Para optimizar aún más el modeloajusto mi grid con lo que he observado y examinamos los nuevos hiperparámetros optimizados y su influencia en el rendimiento del modelo (rf_model2), asegurando así que obtengamos un modelo de RF aleatorio bien calibrado para nuestro conjunto de datos.
+```{r include=FALSE, echo=FALSE}
+rf_grid_2 <- expand.grid(
+  mtry = c(1,2,3),
+  splitrule = c("gini", "extratrees"),
+  min.node.size = c(8,9,10,11,12,13)
+)
+
+# Entrenamiento modelo Random Forest con el grid ajustado
+set.seed(123)
+rf_model_2 <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "ranger",
+  preProcess = c("center", "scale"),
+  metric="ROC",
+  trControl = ctrl,
+  tuneGrid = rf_grid_2
+)
+rf_model_2
+
+```
+
+```{r}
+# Veo el comportamiento de los nuevos hiperparámetros
+plot(rf_model_2)
+
+```
+
+
+
+
+## KNN: K-Nearest Neighbors 
+Elegimos utilizar kNN como tercer algoritmo después de la regresión logística regularizada y Random Forest para nuestro conjunto de datos de diabetes, ya que kNN ofrece un enfoque diferente de clasificación que puede resultar útil en nuestro caso. Mientras que la regresión logística regularizada se centra en reducir el sobreajuste y el bosque aleatorio captura interacciones no lineales entre variables, kNN puede mejorar aún más nuestra comprensión de los datos al clasificarlos según la densidad local de puntos de entrenamiento.
+
+El hiperparámetro que obtenemos es k, el número de vecinos considerados para determinar la clase de un punto de datos. Un valor k más bajo puede dar lugar a un modelo que sea más sensible al ruido, mientras que un valor k más alto puede hacer que la decisión sobre los límites sea menos clara pero se corre el riesgo de perder detalles importantes.
+
+Inicialmente definimos una cuadrícula inicial de parámetros para kNN para intentar optimizar la métrica AUC-ROC y encontrar el mejor valor de k.
+
+```{r include=FALSE, echo=FALSE}
+
+# Definir grid de parámetros iniciales para KNN
+knn_grid <- expand.grid(k = c(8, 9, 10, 11, 12, 13, 15))
+
+# Entrenamiento modelo KNN y con el grid ajustado
+set.seed(123)
+
+knn_model <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "knn",
+  preProcess = c("center", "scale"),
+  metric="ROC", # Voy a optimizar la métrica AUC-ROC
+  trControl = ctrl,
+  tuneGrid = knn_grid
+)
+
+knn_model
+# Fitting k = 15 on full training set
+```
+
+```{r}
+# Veo el comportamiento de los nuevos hiperparámetros
+plot(knn_model)
+```
+
+Después de observar el comportamiento del modelo obtenido ajustamos la grilla y entrenamos el modelo nuevamente para obtener un conjunto óptimo de hiperparámetros.
+
+```{r include=FALSE, echo=FALSE}
+# Ajusto mi grid con lo que he observado
+knn_grid_2 <- expand.grid(k = c(15,16,17,18,19,20,21))
+
+# Entrenamiento modelo KNN y con el grid ajustado
+set.seed(123)
+
+knn_model_2 <- train(
+  DiabetesPresence ~ .,
+  data = train_datos,
+  method = "knn",
+  preProcess = c("center", "scale"),
+  metric="ROC", # Voy a optimizar la métrica AUC-ROC
+  trControl = ctrl,
+  tuneGrid = knn_grid_2
+)
+
+knn_model_2
+# Fitting k = 20 on full training set
+```
+
+La gráfica que obtenemos nos muestra el comportamiento de nuestro hiperparámetro del modelo final (knn_model_2):
+
+```{r}
+# Veo el comportamiento de los nuevos hiperparámetros
+plot(knn_model_2)
+```
+
+
+
+## Comparar modelos
+
+A través de estos pasos, comparamos diferentes modelos de aprendizaje automático utilizados anteriormente para predecir la presencia de diabetes y seleccionamos el modelo con mejor rendimiento según la métrica ROC AUC. Este proceso ayuda a identificar el modelo más adecuado y sólido para realizar predicciones precisas sobre datos de train y test.
+
+En este paso creamos una lista que contiene los modelos optimizados que queremos comparar: GLMNET (regresión logística regularizada), Random Forest (RF) y K-Nearest Neighbors (KNN).
+Usamos la función de remuestreo para comparar los modelos optimizados entre sí y visualizar la comparación del modelo usando diagramas de caja (bwplots) y diagramas de puntos, que nos ayudan a ver cómo se desempeñan los modelos en términos de ROC AUC.
+
+```{r}
+# Lista de modelos a comparar
+models_list <- list(GLMNET = glmnet_model_2, RF = rf_model_2, KNN = knn_model_2)
+
+# Comparar modelos optimizados entre sí usando resamples
+compare_models <- resamples(models_list)
+
+# Crear datosframe con métricas de los modelos optimizados
+metrics_summary <- summary(compare_models)
+
+# Presentar métricas en pantalla
+metrics_summary$statistics
+# Quindi, in base a queste statistiche, il modello Random Forest (RF) sembra aver ottenuto le migliori prestazioni complessive, con un'area sotto la curva ROC leggermente più alta e una specificità leggermente superiore rispetto al modello GLMNET.
+
+# Obtener las métricas disponibles
+metric_names <- names(metrics_summary$statistics)
+
+# Inicializar un datosframe para almacenar los valores medios de las métricas de todos los modelos
+metrics_df <- data.frame(Model = character(0),
+                         Metric = character(0),
+                         Mean = numeric(0))
+
+# Iterar sobre cada métrica
+
+for (metric_name in metric_names) {
+  # Obtener la matriz de valores para la métrica actual
+  metric_matrix <- metrics_summary$statistics[[metric_name]]
+  
+  # Iterar sobre cada fila de la matriz (cada fila corresponde a un modelo)
+  for (i in 1:nrow(metric_matrix)) {
+    # Obtener el nombre del modelo correspondiente a esta fila
+    model_name <- rownames(metric_matrix)[i]
+    
+    # Extraer el valor medio (Mean) de la métrica para este modelo
+    mean_val <- metric_matrix[i, "Mean"]
+    
+    # Agregar este valor medio al datosframe metrics_df
+    metrics_df <- rbind(metrics_df, data.frame(Model = model_name,
+                                               Metric = metric_name,
+                                               Mean = mean_val))
+  }
+}
+
+# Visualizar comparación con gráficos bwplot y dotplot
+bwplot_roc <- bwplot(compare_models, metric = "ROC")
+dotplot_roc <-dotplot(compare_models, metric = "ROC")
+grid.arrange(bwplot_roc, dotplot_roc, ncol = 2, widths = c(6,6))
+
+# Extraer métricas de evaluación (ROC) para cada modelo
+roc_metrics <- summary(compare_models)$statistics$ROC
+
+# Crear un dataframe con las métricas de ROC para cada modelo
+model_results <- data.frame(
+  Model = rownames(roc_metrics),
+  ROC = roc_metrics[,"Mean"]  # Tomar el valor medio de ROC para cada modelo
+)
+
+# Seleccionar el mejor modelo con la mayor métrica ROC
+best_model <- model_results[which.max(model_results$ROC), "Model"]
+
+# Imprimir el nombre del mejor modelo seleccionado
+print(paste("El mejor modelo es:", best_model))
+
+# Almaceno el modelo final elegido 
+final_model <- models_list[[best_model]]
+
+final_method <- compare_models$methods[best_model]
+```
+
+
+
+## Medimos el modelo final seleccionado con los datos de train
+Ahora evaluemos el rendimiento de nuestro modelo final utilizando los datos de entrenamiento. Primero configuramos un método de validación cruzada para evaluar nuestro modelo. Esto significa que dividimos los datos de entrenamiento en 10 partes y entrenamos el modelo en 9 partes, utilizando la décima parte para la evaluación.
+Las métricas de rendimiento del modelo obtenidas durante la validación cruzada nos dicen qué tan bien se desempeña el modelo con los datos de entrenamiento.
+Finalmente, calculamos la importancia de las variables en el modelo entrenado para comprender qué características de los datos son más útiles para realizar predicciones precisas y creamos un gráfico de ellas.
+
+
+```{r}
+# Configuración de la validación cruzada para evaluación del modelo final
+
+ctrl_final <- trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  verboseIter = FALSE
+)
+
+# Realizar el entrenamiento con todos los datos para el modelo final seleccionado
+
+final_model_cv <- train(
+  DiabetesPresence ~ .,
+  data = diabetes,
+  method = final_model$method,
+  importance = "permutation",
+  metric="ROC", # Voy a optimizar la métrica AUC-ROC
+  trControl = ctrl_final,
+  tuneGrid = final_model$bestTune
+)
+
+# Obtener las métricas del modelo final de la validación cruzada
+final_model_metrics <- final_model_cv$results
+
+# Ver las métricas obtenidas durante la validación cruzada
+print(final_model_metrics)
+
+# Obtener importancia de variables del modelo final evaluado
+final_var_importance <- varImp(final_model_cv)
+
+final_var_importance
+```
+
+Dibujamos un gráfico que muestre la importancia de las variables, permitiéndonos visualizar qué características son las más influyentes en el modelo:
+
+```{r}
+plot(varImp(final_model_cv))
+```
+
+
+Creemos un gráfico que muestre los intervalos de confianza para las métricas ROC y grafiquemos la curva ROC:
+
+```{r}
+# Extraer las métricas de ROC y ROCSD del modelo final
+roc_values <- final_model_cv$results$ROC
+roc_sd <- final_model_cv$results$ROCSD
+
+# Crear un dataframe con las métricas de ROC y ROCSD
+roc_df <- data.frame(Modelo = rep("Modelo final", length(roc_values)),
+                     ROC = roc_values,
+                     ROCSD = roc_sd)
+
+# Crear el gráfico de intervalo de confianza de ROC en horizontal usando ggplot2
+plot1 <- ggplot(roc_df, aes(x = ROC, y = Modelo)) +
+  geom_point(position = position_dodge(width = 0.2), color = "blue") +
+  geom_errorbarh(aes(xmin = ROC - ROCSD, xmax = ROC + ROCSD), 
+                 height = 0.2, size = 0.2, color = "red") +  # Líneas laterales para el intervalo de confianza
+  labs(title = "Intervalo de Confianza de AUC-ROC",
+       x = "AUC-ROC",
+       y = "") +  # Dejar el nombre del eje Y vacío para eliminar las etiquetas
+  theme_minimal()
+
+# Extraer las predicciones de probabilidad del modelo final en las particiones de prueba
+predictions <- predict(final_model_cv, type = "prob")
+
+# Calcular la curva ROC utilizando pROC
+roc_curve <- roc(response = diabetes$DiabetesPresence,
+                 predictor = predictions$Si)  # Usar las probabilidades de clase para la clase positiva
+
+# Extraer los valores de sensibilidad y especificidad de la curva ROC
+sensitivity_values <- roc_curve$sensitivities
+specificity_values <- 1 - roc_curve$specificities
+
+# Calcular el valor de AUC-ROC
+auc_roc <- auc(roc_curve)
+auc_roc
+roc_df <- data.frame(Sensibilidad = sensitivity_values, Especificidad = specificity_values)
+
+plot2 <- ggplot(data = roc_df, aes(x = Especificidad, y = Sensibilidad)) +
+  geom_line(color = "blue") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +  # Línea de referencia diagonal
+  labs(title = "Curva ROC del Modelo Final", 
+       x = "Tasa de Falsos Positivos (1 - Especificidad)",
+       y = "Tasa de Verdaderos Positivos (Sensibilidad)",
+       caption = paste("AUC-ROC =", round(auc_roc, 2))) +  # Etiqueta con el valor de AUC-ROC
+  theme_minimal()
+
+
+grid.arrange(plot1, plot2, ncol = 2)
+
+```
+
+
+## Medimos el modelo final seleccionado con los datos de test
+En estos pasos finales medimos el rendimiento de nuestro modelo final utilizando el conjunto de datos de test que no se utilizó durante el entrenamiento. Comenzamos tomando nuestro modelo, que fue entrenado con datos de train, y hacemos predicciones sobre datos de test para ver qué tan bien puede predecir la presencia de diabetes según nuestro estudio. Luego calculamos la curva ROC que nos muestra qué tan bien el modelo es capaz de distinguir entre quienes tienen diabetes y quienes no, a través de diferentes umbrales de probabilidad: el área bajo la curva nos da una idea general del desempeño del modelo.
+
+```{r}
+# MEDIMOS AHORA CON LOS DATOS DE TEST
+
+# Utilizar el modelo entrenado para hacer predicciones en los datos de test
+predictions_test <- predict(final_model_cv, newdata = test_datos, type = "prob")
+
+# Calcular la curva ROC utilizando pROC
+roc_curve_test <- roc(response = test_datos$DiabetesPresence,
+                      predictor = predictions_test$Si)  
+
+# Calcular el AUC-ROC para los datos de test
+auc_roc_test <- auc(roc_curve_test)
+print(paste("AUC-ROC por los datos de test:", round(auc_roc_test, 2)))
+
+plot(roc_curve_test, col = "blue", main = "Curva ROC por los datos de test", lwd = 2)
+```
+
+Finalmente, encontramos la sensibilidad (el modelo identifica correctamente a quienes tienen diabetes) y la especificidad (el modelo identifica correctamente a quienes no tienen diabetes) de nuestro modelo con los datos de test, y representamos el grafico:
+
+```{r}
+# Calcular la sensibilidad y especificidad para diferentes puntos de corte
+sensitivity_test <- roc_curve_test$sensitivities
+specificity_test <- 1 - roc_curve_test$specificities
+
+plot(specificity_test, sensitivity_test, type = "l", col = "blue", 
+     main = "Sensibilidad y especificidad de los datos de test", xlab = "1 - Especificidad", ylab = "Sensibilidad")
+
+```
+
+
+
+# 5. Resultados
+
+Partiendo de un análisis detallado del dataset diabetes y de su posterior modificación, nos quedamos con una base de datos que contiene 768 observaciones y 8 variables, entre las cuales se encuentran `Pregnancies`, `Glucose`, `BloodPressure`, `SkinThickness`, `Insulin`, `BMI`, `Age` y `DiabetesPresence`, que luego dividimos en conjuntos de entrenamiento (80%) y prueba (20%) para realizar un control mediante validación cruzada: para garantizar la robustez de nuestro modelo elegí crear 10 pliegues de remuestreo para el conjunto de entrenamiento con el fin de evaluar con precisión el rendimiento.
+
+Entonces utilizamos tres algoritmos diferentes que comparamos al final para poder elegir el más adecuado para nuestro estudio.
+
+Del análisis de los dos modelos de **regresión logística con regularización**, surgen algunas diferencias significativas:
+
+- el Modelo 1, con un alpha igual a 0 (regresión ridge) y un lambda de 0.05272632, presenta un AUC-ROC de 0.8169613, una sensibilidad de 0.8902248 y una especificidad de 0.50546702;
+- el Modelo 2, en cambio, tiene un alpha igual a 1 (penalización lasso, tiende a empujar muchos coeficientes hacia 0, eliminando así las variables menos importantes) y un lambda de 0.01363636, mostrando un AUC-ROC de 0.8174819, una sensibilidad de 0.8876091 y una especificidad de 0.5143290.
+
+Podemos ver, sin embargo, que el segundo modelo es el mejor porque es más eficaz en la reducción de falsos positivos gracias a la selección de un conjunto más reducido de variables relevantes, migliorando le capacità predittive e bilanciando la sensibilità e la specificità. Esto sugiere que algunas variables del dataset pueden ser redundantes o menos informativas y que nuestro modelo ajustado es capaz de identificarlas y reducir su influencia (un ejemplo de variable no relevante, ya eliminada anteriormente, es DiabetesPedigreeFunction).
+
+Posteriormente, con el algoritmo **Random Forest** aplicamos dos configuraciones al dataset compuesto por 615 muestras con 7 variables predictivas, clasificándolos en las clases 'No' y 'Sí' (sobre la presencia o ausencia de diabetes). Las dos configuraciones del modelo produjeron resultados ligeramente diferentes, reflejando el impacto de los parámetros elegidos:
+
+a. Primer Modelo:
+- **Configuración**: `mtry=2`, `extratrees`, `ntree=10`
+- **Resultados**:
+  - ROC: 0.8184474
+  - Sensibilità: 0.8706150
+  - Specificità: 0.5454800
+
+b. Segundo Modelo:
+- **Configuración**: `mtry=3`, `extratrees`, `min.node.size=13`
+- **Resultados**:
+  - ROC: 0.8218124
+  - Sensibilità: 0.8708426
+  - Specificità: 0.5651194
+
+Interpretando los datos anteriores podemos afirmar que:
+
+1. Con respecto al **Área bajo la Curva ROC (AUC)** el segundo modelo (ajustado) presenta una ligera mejora en comparación con el primero, y esto indica una capacidad globalmente mejor para distinguir entre las dos clases que se refieren a la presencia de diabetes.
+2. La **Sensibilidad (Recall)** del modelo ajustado es ligeramente más alta en comparación con el primero, lo que implica que es más efectivo en detectar los casos positivos ('Sí') de diabetes.
+3. La **Especificidad** del modelo 1 es superior en comparación con el segundo, lo que significa que el primer modelo es ligeramente mejor en detectar los casos negativos ('No').
+4. La modificación del parámetro `min.node.size`  en el segundo modelo ha mejorado la capacidad de detectar casos positivos, aunque con una leve reducción en la especificidad: esto nos indica que las variables predictivas interactúan de tal manera que la estructura de los árboles con nodos más grandes mejora la sensibilidad; un valor más alto de  `Min.node.size=13` (se pasa de tener un valor igual a 10 en el primer modelo a tener un 13 después de ajustarlo) produce árboles más simples, ya que requiere más muestras para una división, resultando en un árbol menos profundo y con menos nodos, haciéndolo menos complejo y más interpretable, con ventajas para la explicación de los resultados y para la comprensión de las variables más influyentes.
+5. Con el aumento de **mtry**, que pasa de un valor igual a 2 a un valor igual a 3 en el modelo ajustado, cada árbol tiene un poder predictivo ligeramente mayor ya que se considera un número mayor de variables en cada nodo, lo que puede llevar a divisiones más precisas y a un mejor rendimiento del árbol individual.
+En conclusión, el mejor modelo entre los dos presentados también en esta ocasión es el segundo.
+
+Como último paso luego aplicamos el algoritmo del **kNN (k vecinos más cercanos)**. Del análisis se desprende que:
+
+- el primer modelo, con un valor óptimo de k igual a 15, obtuvo un área bajo la curva ROC (AUC-ROC) de 0.7813, una sensibilidad del 82.56%, y una especificidad del 54.80%;
+- el segundo modelo, con un valor óptimo de k igual a 20, mostró un área bajo la curva ROC ligeramente superior, de 0.7836, una sensibilidad del 83.10%, y una especificidad del 54.27%.
+
+Estos resultados indican que ambos modelos tienen un rendimiento similar en términos de AUC-ROC, con el segundo modelo mostrando datos ligeramente mejores en comparación con el primero.
+
+Después de haber comparado los tres casos diferentes representados por GLMNET (Generalized Linear Model with Elastic Net Regularization), RF (Random Forest) y KNN (K-Nearest Neighbors) finalmente identificamos el mejor modelo seleccionando el que tiene el AUC-ROC medio más alto, obtenido a través de Random Forest (RF); además, fue el algoritmo que demostró el mejor rendimiento también en relación con las medias de sensibilidad y especificidad. Por lo tanto, el modelo Random Forest podría ser el más adecuado para este problema particular de clasificación.
+
+Una vez realizada la fase de entrenamiento y validación cruzada del modelo, utilizando el control mediante el método de cross-validation, obtuvimos el modelo final optimizado, con el cual logramos obtener:
+
+- el gráfico que muestra la importancia de las variables a través del cual entendimos que la más influyente es **Glucose**, mientras que **BloodPressure** no aporta información significativa sobre la presencia o ausencia de diabetes, variable que por lo tanto debería ser eliminada de nuestro dataset;
+- las probabilidades de cada individuo de pertenecer a una de las dos clases (relacionadas con la presencia de la enfermedad), permitiéndonos identificar una medida del grado de certeza, que como podemos notar es bastante alta, apoyando nuestro modelo.
+
+Una vez utilizado el modelo final optimizado también en los datos de prueba, para verificar la adaptabilidad y evaluar su rendimiento, obtuvimos un alto AUC-ROC de 0.98, confirmando así la alta capacidad de predecir la presencia de diabetes utilizando las variables disponibles en el dataset.
+
+# 6. Conclusiones 
+
+Entre las variables más importantes para predecir la presencia de diabetes en mujeres pertenecientes a la tribu india Pima, encontramos la variable **Glucose**, que mide la respuesta de la insulina dos horas después de consumir una bebida con glucosa, evaluando la capacidad del cuerpo para manejar y eliminar la glucosa de manera eficiente. Esto es de gran importancia en la predicción de la enfermedad, ya que indica que las mujeres con dificultades para controlar los niveles de glucosa en sangre seguramente sufrirán de diabetes. Luego, encontramos en segunda y tercera posición las variables **BMI** y **Age**, con casi el mismo grado de importancia, lo que nos ayuda a comprender cómo una edad más avanzada y un índice de masa corporal excesivo en comparación con uno normal son significativos en nuestras predicciones. También hemos encontrado previamente que un estilo de vida poco saludable empeora las condiciones de salud de las mujeres de la tribu estudiada, condiciones que podrían estar afectadas por una mala dieta o falta de actividad física.
+
+Importante para nuestro estudio resultó ser también **Pregnancies**, que, aunque tiene una importancia menor en comparación con las variables anteriores, sigue siendo relevante, y a través de la cual podemos afirmar que el número de embarazos influye en la presencia de la enfermedad; otras informaciones encontradas al respecto informan cómo "el embarazo diabético, además de sus efectos en el recién nacido, tiene efectos en el crecimiento subsiguiente y el metabolismo de la glucosa de la descendencia. Estos efectos se suman a los rasgos genéticamente determinados".
+
+Otra variable importante es **Insulin**, que se midió analizando los niveles de insulina en sangre después de la administración de glucosa al sujeto. Los valores presentes en nuestro conjunto de datos, como se puede ver en el diagrama de caja construido en la primera parte de nuestro estudio, muestran niveles extremadamente altos, con una media mayor que la de los sujetos sanos. Esto se debe a que los sujetos con diabetes o prediabetes tienen una respuesta anormal que se manifiesta con niveles inusualmente altos de insulina (hiperinsulinemia), un fenómeno causado por células que no responden adecuadamente, lo que obliga al páncreas a producir más hormona en un intento de mantener normales los niveles de glucosa en sangre.
+
+**SkinThickness** contribuye, aunque de manera modesta, a la predicción de la presencia de diabetes en la muestra estudiada, lo que nos permite afirmar la existencia de cierta correlación entre el grosor de la piel del tríceps (indicativo de acumulación de grasa corporal) y la probabilidad de desarrollar diabetes, demostrando que el exceso de grasa corporal es un factor de riesgo para la diabetes.
+
+Un caso un poco más extraño lo encontramos en **BloodPressure**, que es anulada en la predicción de la diabetes, indicándola como un factor no determinante en la predicción de la presencia de diabetes en esta muestra de datos específica. En la práctica, de hecho, existe una correlación entre la hipertensión (presión arterial alta) y la presencia de diabetes, sin embargo, la falta de correlación en nuestro conjunto de datos específico podría deberse a varios factores, incluido el tamaño de la muestra, la variabilidad de los datos u otras características específicas de la muestra estudiada; también podría deberse a la presencia de otras variables que tienen un efecto más fuerte y predominante en la predicción de la diabetes (como el BMI o los niveles de glucosa). Esto sugiere que, en el contexto de este estudio, la presión arterial diastólica no es un buen indicador del riesgo de diabetes, una variable que podría ser excluida sin perder información significativa. Esto permitiría simplificar el modelo centrándose en variables que tienen una mayor relevancia en la predicción de la diabetes.
+
+En conclusión, nuestro estudio ha destacado cómo variables específicas, como los niveles de glucosa, BMI, edad, número de embarazos y niveles de insulina, son fundamentales para predecir la presencia de diabetes en las mujeres de la tribu Pima, demostrando cómo los factores relacionados con el estilo de vida juegan un papel crucial en el desarrollo de la enfermedad, enfatizando la importancia de intervenciones dirigidas a la dieta y la actividad física para reducir el riesgo de diabetes y mejorar la salud general de las mujeres Pima. A través de una investigación adicional sobre la tribu estudiada, también he llegado a información que respalda las conclusiones obtenidas, según la cual: "Aunque están más concienciados, siguen presentando uno de los índices de prevalencia de diabetes tipo 2 más altos del mundo: cuando llegan a la edad de cincuenta años es diagnosticado de esta enfermedad un número muy elevado de ellos, y por este motivo seguramente desarrollarán problemas cardiacos, renales y muertes prematuras. Las tasas de diabetes en niños y adolescentes están igualmente disparadas. La hemodiálisis es hoy un rito tradicional." .
+
+Nuestro objetivo de predecir si un paciente tiene diabetes o no, basándonos en mediciones diagnósticas, finalmente se ha alcanzado.
+
+
+# 7. Bibliografía
+
+https://blogs.publico.es/recetas-caseras-nutricion-saludable/2023/05/05/la-tragica-historia-de-la-tribu-pima-el-pueblo-con-mayor-diabetes-del-mundo/?doing_wp_cron=1716974182.1087489128112792968750
+
+https://www.kaggle.com/datasets/mathchi/diabetes-data-set/data
+
+“Understanding Machine Learning: From Theory to Algorithms” Shalev-Shwartz Shai and Ben-David Shai, 2014 Cambridge University Press
+
